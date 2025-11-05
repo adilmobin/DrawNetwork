@@ -1,0 +1,2 @@
+# Network Configuration Parser and Diagram Generator Requirements
+# No external dependencies required - uses only Python standard library

@@ -1,0 +1,34 @@
+set deviceconfig system hostname PA-FW-01
+set deviceconfig system domain example.com
+
+set network interface ethernet ethernet1/1 layer3 ip 203.0.113.20/29
+set network interface ethernet ethernet1/1 comment "Outside Interface"
+set network interface ethernet ethernet1/2 layer3 ip 192.168.1.1/24
+set network interface ethernet ethernet1/2 comment "Inside Interface"
+set network interface ethernet ethernet1/3 layer3 ip 172.16.10.1/24
+set network interface ethernet ethernet1/3 comment "DMZ Interface"
+
+set zone trust network layer3 ethernet1/2
+set zone untrust network layer3 ethernet1/1
+set zone dmz network layer3 ethernet1/3
+
+set network virtual-router default interface ethernet1/1
+set network virtual-router default interface ethernet1/2
+set network virtual-router default interface ethernet1/3
+
+set network virtual-router default routing-table ip static-route default destination 0.0.0.0/0 nexthop ip-address 203.0.113.17
+set network virtual-router default routing-table ip static-route internal destination 192.168.10.0/24 nexthop ip-address 192.168.1.254
+
+set network virtual-router default protocol ospf enable yes
+set network virtual-router default protocol ospf router-id 3.3.3.3
+set network virtual-router default protocol ospf area 0.0.0.0 interface ethernet1/2 enable yes
+
+set rulebase security rules allow-outbound from trust to untrust source any destination any application any service application-default action allow
+set rulebase security rules allow-dmz-web from untrust to dmz source any destination dmz-servers application web-browsing service application-default action allow
+set rulebase security rules block-all from any to any source any destination any application any service any action deny
+
+set rulebase nat rules outbound-nat from trust to untrust source 192.168.1.0/24 destination any source-translation dynamic-ip-and-port interface-address interface ethernet1/1
+set rulebase nat rules dmz-web-nat from untrust to dmz destination 203.0.113.25 source any destination-translation translated-address 172.16.10.10
+
+set address inside-net ip-netmask 192.168.1.0/24
+set address dmz-servers ip-netmask 172.16.10.0/24
