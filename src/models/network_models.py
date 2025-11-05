@@ -53,6 +53,8 @@ class Interface:
     native_vlan: Optional[int] = None
     mac_address: Optional[str] = None
     mtu: Optional[int] = None
+    vrf: Optional[str] = None  # VRF/Virtual Router name
+    vsys: Optional[str] = None  # Virtual System (Palo Alto)
 
     def __hash__(self):
         return hash(self.name)
@@ -65,6 +67,7 @@ class VLAN:
     name: Optional[str] = None
     description: Optional[str] = None
     interfaces: List[str] = field(default_factory=list)
+    vrf: Optional[str] = None  # VRF this VLAN belongs to
 
     def __hash__(self):
         return hash(self.vlan_id)
@@ -80,6 +83,7 @@ class Route:
     protocol: ProtocolType = ProtocolType.STATIC
     administrative_distance: Optional[int] = None
     metric: Optional[int] = None
+    vrf: Optional[str] = None  # VRF/Virtual Router name
 
     def __hash__(self):
         return hash((self.destination, self.mask, self.next_hop, self.interface))
@@ -96,6 +100,22 @@ class RoutingProtocol:
     areas: List[str] = field(default_factory=list)
     autonomous_system: Optional[int] = None
     redistributed_protocols: List[str] = field(default_factory=list)
+    vrf: Optional[str] = None  # VRF/Virtual Router name
+    vsys: Optional[str] = None  # Virtual System (Palo Alto)
+
+
+@dataclass
+class VirtualRouter:
+    """Virtual Router / VRF configuration"""
+    name: str
+    interfaces: List[str] = field(default_factory=list)
+    routes: List[Route] = field(default_factory=list)
+    routing_protocols: List[RoutingProtocol] = field(default_factory=list)
+    route_distinguisher: Optional[str] = None
+    vsys: Optional[str] = None  # Which VSYS this VR belongs to (Palo Alto)
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 @dataclass
@@ -159,8 +179,9 @@ class NetworkDevice:
     # Physical and logical components
     interfaces: List[Interface] = field(default_factory=list)
     vlans: List[VLAN] = field(default_factory=list)
+    virtual_routers: List[VirtualRouter] = field(default_factory=list)
 
-    # Routing
+    # Routing (global or if no VRF/VR configured)
     routes: List[Route] = field(default_factory=list)
     routing_protocols: List[RoutingProtocol] = field(default_factory=list)
 
@@ -174,6 +195,7 @@ class NetworkDevice:
     software_version: Optional[str] = None
     serial_number: Optional[str] = None
     model: Optional[str] = None
+    vsys_name: Optional[str] = None  # Virtual System name (Palo Alto)
 
     def get_interface(self, name: str) -> Optional[Interface]:
         """Get interface by name"""
@@ -195,6 +217,17 @@ class NetworkDevice:
             if zone.name == name:
                 return zone
         return None
+
+    def get_virtual_router(self, name: str) -> Optional['VirtualRouter']:
+        """Get virtual router by name"""
+        for vr in self.virtual_routers:
+            if vr.name == name:
+                return vr
+        return None
+
+    def add_virtual_router(self, vr: 'VirtualRouter'):
+        """Add a virtual router"""
+        self.virtual_routers.append(vr)
 
 
 @dataclass

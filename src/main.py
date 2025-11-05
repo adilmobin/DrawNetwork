@@ -21,7 +21,7 @@ from models.network_models import NetworkTopology
 from generators.network_connection_diagram import NetworkConnectionDiagram
 from generators.logical_diagram import LogicalDiagram
 from generators.topology_diagram import TopologyDiagram
-from generators.routing_diagram import RoutingDiagram
+from generators.detailed_routing_diagram import DetailedRoutingDiagram
 
 from analyzers.connection_discovery import ConnectionDiscovery
 
@@ -74,6 +74,10 @@ class NetworkDiagramGenerator:
                 print(f"    - VLANs: {len(device.vlans)}")
                 print(f"    - Routes: {len(device.routes)}")
                 print(f"    - Routing Protocols: {len(device.routing_protocols)}")
+                if device.virtual_routers:
+                    print(f"    - Virtual Routers: {len(device.virtual_routers)}")
+                    for vr in device.virtual_routers:
+                        print(f"      • {vr.name}: {len(vr.routes)} routes, {len(vr.routing_protocols)} protocols")
                 if device.security_zones:
                     print(f"    - Security Zones: {len(device.security_zones)}")
                 if device.security_policies:
@@ -203,9 +207,9 @@ class NetworkDiagramGenerator:
 
         # Generate Routing Diagram
         if 'routing' in diagram_types:
-            print("  Generating Routing Diagram...")
+            print("  Generating Detailed Routing Diagram...")
             try:
-                routing_diagram = RoutingDiagram()
+                routing_diagram = DetailedRoutingDiagram()
                 output_file = os.path.join(output_dir, 'routing_diagram.drawio')
                 routing_diagram.generate(self.topology, output_file)
                 print(f"    ✓ Saved to {output_file}")
@@ -244,7 +248,7 @@ Generated diagrams:
   - connection      : Network/Connection Drawing
   - logical         : Logical Drawing (VLANs, Zones)
   - topology        : Topology Drawing
-  - routing         : Routing Drawing
+  - routing         : Detailed Routing Drawing (Individual Peer Relationships)
         """
     )
 

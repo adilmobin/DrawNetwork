@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from typing import List, Optional, Dict, Tuple
 from models.network_models import (
     NetworkDevice, Interface, SecurityZone, SecurityPolicy, NAT, VPN, Route, RoutingProtocol,
-    DeviceType, InterfaceType, ProtocolType, NetworkTopology
+    DeviceType, InterfaceType, ProtocolType, NetworkTopology, VirtualRouter
 )
 
 
@@ -262,14 +262,34 @@ class PaloAltoParser:
                 if security_zone:
                     device.security_zones.append(security_zone)
 
-        # Routes and routing protocols
+        # Virtual Routers - parse as VirtualRouter objects
         virtual_routers = root.findall('.//network/virtual-router/entry')
-        for vr in virtual_routers:
-            routes = self._parse_routes_xml(vr)
-            device.routes.extend(routes)
+        vsys_name = device.vsys_name if hasattr(device, 'vsys_name') else None
 
-            protocols = self._parse_routing_protocols_xml(vr)
-            device.routing_protocols.extend(protocols)
+        for vr_entry in virtual_routers:
+            vr_name = vr_entry.get('name', 'default')
+            vr = VirtualRouter(name=vr_name, vsys=vsys_name)
+
+            # Get interfaces in this VR
+            intf_members = vr_entry.findall('.//interface/member')
+            for member in intf_members:
+                if member.text:
+                    vr.interfaces.append(member.text)
+                    # Mark interface with VRF name
+                    for intf in device.interfaces:
+                        if intf.name == member.text:
+                            intf.vrf = vr_name
+                            intf.vsys = vsys_name
+
+            # Parse routes for this VR
+            routes = self._parse_routes_xml(vr_entry, vr_name)
+            vr.routes.extend(routes)
+
+            # Parse routing protocols for this VR
+            protocols = self._parse_routing_protocols_xml(vr_entry, vr_name, vsys_name)
+            vr.routing_protocols.extend(protocols)
+
+            device.virtual_routers.append(vr)
 
     def _parse_security_config(self, root: ET.Element, device: NetworkDevice):
         """Parse security configuration (policies, NAT, VPN)"""
@@ -398,7 +418,7 @@ class PaloAltoParser:
 
         return zone
 
-    def _parse_routes_xml(self, vr_elem) -> List[Route]:
+    def _parse_routes_xml(self, vr_elem, vr_name: str = None) -> List[Route]:
         """Parse static routes from virtual router XML"""
         routes = []
 
@@ -432,12 +452,13 @@ class PaloAltoParser:
                         mask=netmask,
                         next_hop=next_hop,
                         interface=interface,
-                        protocol=ProtocolType.STATIC
+                        protocol=ProtocolType.STATIC,
+                        vrf=vr_name
                     ))
 
         return routes
 
-    def _parse_routing_protocols_xml(self, vr_elem) -> List[RoutingProtocol]:
+    def _parse_routing_protocols_xml(self, vr_elem, vr_name: str = None, vsys_name: str = None) -> List[RoutingProtocol]:
         """Parse dynamic routing protocols from virtual router XML"""
         protocols = []
 
@@ -445,7 +466,7 @@ class PaloAltoParser:
         ospf_elem = vr_elem.find('.//protocol/ospf')
         if ospf_elem is not None and ospf_elem.find('enable') is not None:
             if ospf_elem.find('enable').text == 'yes':
-                ospf = RoutingProtocol(protocol=ProtocolType.OSPF)
+                ospf = RoutingProtocol(protocol=ProtocolType.OSPF, vrf=vr_name, vsys=vsys_name)
 
                 router_id = ospf_elem.find('router-id')
                 if router_id is not None and router_id.text:
@@ -464,7 +485,7 @@ class PaloAltoParser:
         bgp_elem = vr_elem.find('.//protocol/bgp')
         if bgp_elem is not None and bgp_elem.find('enable') is not None:
             if bgp_elem.find('enable').text == 'yes':
-                bgp = RoutingProtocol(protocol=ProtocolType.BGP)
+                bgp = RoutingProtocol(protocol=ProtocolType.BGP, vrf=vr_name, vsys=vsys_name)
 
                 router_id = bgp_elem.find('router-id')
                 if router_id is not None and router_id.text:
