@@ -23,6 +23,8 @@ from generators.logical_diagram import LogicalDiagram
 from generators.topology_diagram import TopologyDiagram
 from generators.routing_diagram import RoutingDiagram
 
+from analyzers.connection_discovery import ConnectionDiscovery
+
 
 class NetworkDiagramGenerator:
     """Main orchestrator for parsing configs and generating diagrams"""
@@ -55,17 +57,27 @@ class NetworkDiagramGenerator:
                 print(f"Unknown device type: {device_type}")
                 return False
 
-            device = parser.parse(config_text)
-            self.topology.add_device(device)
-            print(f"  ✓ Parsed device: {device.hostname}")
-            print(f"    - Interfaces: {len(device.interfaces)}")
-            print(f"    - VLANs: {len(device.vlans)}")
-            print(f"    - Routes: {len(device.routes)}")
-            print(f"    - Routing Protocols: {len(device.routing_protocols)}")
-            if device.security_zones:
-                print(f"    - Security Zones: {len(device.security_zones)}")
-            if device.security_policies:
-                print(f"    - Security Policies: {len(device.security_policies)}")
+            # Parse returns either a single device or list of devices (Palo Alto Panorama/multi-vsys)
+            result = parser.parse(config_text)
+
+            # Handle both single device and list of devices
+            if isinstance(result, list):
+                devices = result
+            else:
+                devices = [result]
+
+            # Add all devices to topology
+            for device in devices:
+                self.topology.add_device(device)
+                print(f"  ✓ Parsed device: {device.hostname}")
+                print(f"    - Interfaces: {len(device.interfaces)}")
+                print(f"    - VLANs: {len(device.vlans)}")
+                print(f"    - Routes: {len(device.routes)}")
+                print(f"    - Routing Protocols: {len(device.routing_protocols)}")
+                if device.security_zones:
+                    print(f"    - Security Zones: {len(device.security_zones)}")
+                if device.security_policies:
+                    print(f"    - Security Policies: {len(device.security_policies)}")
 
             return True
 
@@ -146,6 +158,15 @@ class NetworkDiagramGenerator:
             diagram_types = ['connection', 'logical', 'topology', 'routing']
 
         print(f"\nGenerating diagrams for {len(self.topology.devices)} device(s)...")
+
+        # Run connection discovery
+        print("\n  Running connection discovery...")
+        discovery = ConnectionDiscovery(self.topology)
+        discovery.discover_all()
+        print(discovery.get_connection_summary())
+
+        # Print detailed connections
+        discovery.print_discovered_connections()
 
         # Generate Network Connection Diagram
         if 'connection' in diagram_types:

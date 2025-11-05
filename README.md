@@ -8,7 +8,9 @@ A comprehensive Python tool that parses network device configurations and automa
 - **Cisco Nexus Switch** - Data center switching platform
 - **Cisco Catalyst Switch** - Enterprise switching platform
 - **Cisco ASA Firewall** - Adaptive Security Appliance
-- **Palo Alto Firewall/Panorama** - Next-generation firewall (supports both XML and set-format configs)
+- **Palo Alto NGFW** - Next-generation firewall (supports both XML and set-format configs)
+- **Palo Alto Panorama** - Centralized management with multi-device support
+- **Multi-Vsys Configurations** - Supports virtual systems on Palo Alto devices
 
 ### Generated Diagrams
 
@@ -21,7 +23,7 @@ The tool automatically generates **four types of professional network diagrams**
 
 ### Parsed Elements
 
-- Network interfaces (physical, VLAN, loopback, management)
+- Network interfaces (physical, VLAN, loopback, management, port-channel, tunnel)
 - IP addressing and subnets
 - VLANs and trunk configurations
 - Static routes
@@ -30,6 +32,21 @@ The tool automatically generates **four types of professional network diagrams**
 - Security policies and ACLs
 - NAT rules (static and dynamic)
 - VPN configurations (IPSec, SSL)
+- Panorama managed devices and device groups
+- Multi-vsys configurations
+
+### Intelligent Connection Discovery
+
+The tool includes an intelligent connection discovery engine that automatically identifies:
+
+- **Layer 3 Connections** - Devices connected via shared IP subnets
+- **OSPF Adjacencies** - Devices running OSPF on the same network segment
+- **BGP Peerings** - BGP neighbor relationships between devices
+- **Static Route Relationships** - Next-hop dependencies between devices
+- **VPN Tunnels** - IPSec VPN connections between firewalls
+- **Routing Relationships** - How devices exchange routing information
+
+This enables the tool to create a **unified network topology** showing how Cisco Nexus switches, Catalyst switches, ASA firewalls, and Palo Alto firewalls are interconnected, even when parsing configurations from multiple separate files.
 
 ## Installation
 
@@ -223,8 +240,54 @@ set zone trust network layer3 ethernet1/2
 set rulebase security rules allow-out action allow
 ```
 
-### Palo Alto (XML Format)
-XML configurations exported from Palo Alto devices are also supported.
+### Palo Alto (XML Format - NGFW and Panorama)
+```xml
+<?xml version="1.0"?>
+<config version="9.1.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <network>
+        <interface>
+          <ethernet>
+            <entry name="ethernet1/1">
+              <layer3>
+                <ip>
+                  <entry name="192.168.1.1/24"/>
+                </ip>
+              </layer3>
+            </entry>
+          </ethernet>
+        </interface>
+        <virtual-router>
+          <entry name="default">
+            <protocol>
+              <bgp>
+                <enable>yes</enable>
+                <router-id>1.1.1.1</router-id>
+              </bgp>
+            </protocol>
+          </entry>
+        </virtual-router>
+      </network>
+      <vsys>
+        <entry name="vsys1">
+          <zone>
+            <entry name="trust">
+              <network>
+                <layer3>
+                  <member>ethernet1/1</member>
+                </layer3>
+              </network>
+            </entry>
+          </zone>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>
+```
+
+XML configurations from both standalone NGFW devices and Panorama (with managed devices) are fully supported. The parser automatically detects Panorama configurations and extracts all managed firewall configurations, including multi-vsys setups.
 
 ## Auto-Detection
 

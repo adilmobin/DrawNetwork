@@ -1,0 +1,55 @@
+hostname ASA-FW-01
+domain-name example.com
+!
+interface GigabitEthernet0/0
+ nameif outside
+ security-level 0
+ ip address 203.0.113.10 255.255.255.248
+ no shutdown
+!
+interface GigabitEthernet0/1
+ nameif inside
+ security-level 100
+ ip address 192.168.1.1 255.255.255.0
+ no shutdown
+!
+interface GigabitEthernet0/2
+ nameif dmz
+ security-level 50
+ ip address 172.16.1.1 255.255.255.0
+ no shutdown
+!
+object network INSIDE-NET
+ subnet 192.168.1.0 255.255.255.0
+!
+object network DMZ-WEB-SERVER
+ host 172.16.1.10
+!
+access-list outside_in extended permit tcp any host 172.16.1.10 eq 443
+access-list outside_in extended permit tcp any host 172.16.1.10 eq 80
+access-list inside_out extended permit ip any any
+!
+access-group outside_in in interface outside
+access-group inside_out in interface inside
+!
+object network INSIDE-NET
+ nat (inside,outside) dynamic interface
+!
+object network DMZ-WEB-SERVER
+ nat (dmz,outside) static 203.0.113.15
+!
+route outside 0.0.0.0 0.0.0.0 203.0.113.9 1
+route inside 192.168.10.0 255.255.255.0 192.168.1.254 1
+!
+crypto ikev1 policy 10
+ authentication pre-share
+ encryption aes-256
+ hash sha
+ group 2
+!
+crypto ipsec ikev1 transform-set ESP-AES-SHA esp-aes esp-sha-hmac
+!
+tunnel-group 203.0.113.20 type ipsec-l2l
+tunnel-group 203.0.113.20 ipsec-attributes
+ ikev1 pre-shared-key SecretKey123
+!
