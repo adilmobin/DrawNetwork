@@ -12,7 +12,7 @@ class DrawIOGenerator:
     """Base Draw.io diagram generator"""
 
     def __init__(self):
-        self.next_id = 1
+        self.next_id = 2  # Start at 2 since 0 and 1 are reserved for default cells
         self.cell_map = {}  # Maps object names to cell IDs
 
     def create_diagram(self, name: str = "Network Diagram") -> Tuple[ET.Element, ET.Element]:
