@@ -102,6 +102,7 @@ class RoutingProtocol:
     redistributed_protocols: List[str] = field(default_factory=list)
     vrf: Optional[str] = None  # VRF/Virtual Router name
     vsys: Optional[str] = None  # Virtual System (Palo Alto)
+    bgp_peers: List[Dict[str, str]] = field(default_factory=list)  # BGP peer details: [{ip, remote_as, description}]
 
 
 @dataclass

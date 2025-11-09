@@ -256,6 +256,9 @@ class CiscoNexusParser:
             process_id=process_id
         )
 
+        # Track BGP peer details
+        bgp_peer_details = {}
+
         i = start_idx + 1
         while i < len(lines):
             line = lines[i].strip()
@@ -282,9 +285,28 @@ class CiscoNexusParser:
 
             # Neighbor statements
             elif line.startswith('neighbor '):
+                # Parse neighbor IP
                 match = re.match(r'neighbor (\S+)', line)
                 if match:
-                    routing_protocol.neighbors.append(match.group(1))
+                    neighbor_ip = match.group(1)
+                    routing_protocol.neighbors.append(neighbor_ip)
+
+                    # For BGP, capture detailed peer info
+                    if protocol_type == ProtocolType.BGP:
+                        if neighbor_ip not in bgp_peer_details:
+                            bgp_peer_details[neighbor_ip] = {'ip': neighbor_ip}
+
+                        # Check for remote-as
+                        if 'remote-as' in line:
+                            remote_as_match = re.search(r'remote-as\s+(\d+)', line)
+                            if remote_as_match:
+                                bgp_peer_details[neighbor_ip]['remote_as'] = remote_as_match.group(1)
+
+                        # Check for description
+                        if 'description' in line:
+                            desc_match = re.search(r'description\s+(.+)', line)
+                            if desc_match:
+                                bgp_peer_details[neighbor_ip]['description'] = desc_match.group(1).strip()
 
             # Redistribute
             elif line.startswith('redistribute '):
@@ -292,6 +314,10 @@ class CiscoNexusParser:
                 routing_protocol.redistributed_protocols.append(protocol)
 
             i += 1
+
+        # Add BGP peer details if this is BGP
+        if protocol_type == ProtocolType.BGP:
+            routing_protocol.bgp_peers = list(bgp_peer_details.values())
 
         return routing_protocol, i
 

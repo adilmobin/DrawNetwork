@@ -507,6 +507,21 @@ class PaloAltoParser:
                         if peer_addr is not None and peer_addr.text:
                             bgp.neighbors.append(peer_addr.text)
 
+                            # Capture detailed peer information
+                            peer_details = {'ip': peer_addr.text}
+
+                            # Get remote AS
+                            remote_as = peer.find('.//remote-as')
+                            if remote_as is not None and remote_as.text:
+                                peer_details['remote_as'] = remote_as.text
+
+                            # Get peer name/description
+                            peer_name = peer.get('name')
+                            if peer_name:
+                                peer_details['description'] = peer_name
+
+                            bgp.bgp_peers.append(peer_details)
+
                 protocols.append(bgp)
 
         return protocols
